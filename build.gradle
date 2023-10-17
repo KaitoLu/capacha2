@@ -1,0 +1,100 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.1.4'
+	id 'io.spring.dependency-management' version '1.1.3'
+	id 'maven-publish'
+}
+
+group = 'com.systex'
+version = '1.1'
+
+
+java {
+	sourceCompatibility = '17'
+}
+apply plugin: 'java'
+apply plugin: 'maven-publish'
+
+jar {
+	from sourceSets.main.output
+}
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+	maven {
+		name = 'nexus-releases'
+		url = uri('http://localhost:8081/repository/maven-releases/')
+		allowInsecureProtocol = true
+	}
+	maven {
+		name = 'nexus-snapshots'
+		url = uri('http://localhost:8081/repository/maven-snapshots/')
+		allowInsecureProtocol = true
+	}
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter'
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+publishing {
+	publications {
+		maven(MavenPublication) {
+			artifact bootJar
+			if (version.endsWith('-SNAPSHOT')) {
+				// 发布到快照仓库
+				repositories {
+					maven {
+						name = 'nexus-snapshots'
+						url 'http://localhost:8081/repository/maven-snapshots/'
+						credentials {
+							username = 'admin'
+							password = 'admin123'
+						}
+						allowInsecureProtocol = true
+					}
+				}
+			} else {
+				// 发布到正式仓库
+				repositories {
+					maven {
+						name = 'nexus-releases'
+						url 'http://localhost:8081/repository/maven-releases/'
+						credentials {
+							username = 'admin'
+							password = 'admin123'
+						}
+						allowInsecureProtocol = true
+					}
+				}
+			}
+
+		}
+	}
+}
+
+
+
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+tasks.withType(Jar) {
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+	manifest {
+		attributes 'Main-Class': 'MainKt'
+	}
+
+	from sourceSets.main.output
+	exclude('BOOT-INF/classes/') // 排除Spring Boot的内部类文件
+	exclude('META-INF/spring.factories') // 如果需要排除Spring Boot的自动配置
+
+}
